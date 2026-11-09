@@ -37,6 +37,9 @@ public class UrlsServiceTests
         Assert.NotNull(resultado);
         Assert.Equal(urlOriginal, resultado.OriginalUrl);
         Assert.False(string.IsNullOrEmpty(resultado.ShortCode));
+
+        // Verificação adicionada (Exercício 1 - Item 3):
+        _mockContext.Verify(c => c.AddAsync(It.IsAny<UrlItem>()), Times.Once);
     }
 
     [Fact]
@@ -56,4 +59,77 @@ public class UrlsServiceTests
             () => _service.CreateShortUrlAsync("ftp://arquivo-invalido.com")
         );
     }
+
+    [Fact]
+    public async Task CreateShortUrlAsync_ComUrlNula_DeveLancarArgumentException()
+    {
+        // Act & Assert
+        await Assert.ThrowsAsync<ArgumentException>(
+            () => _service.CreateShortUrlAsync(null!)
+        );
+    }
+
+    [Fact]
+    public async Task CreateShortUrlAsync_ComUrlMuitoLonga_DeveLancarArgumentException()
+    {
+        // Arrange
+        var urlMuitoLonga = "https://exemplo.com/" + new string('a', 2100);
+
+        // Act & Assert
+        await Assert.ThrowsAsync<ArgumentException>(
+            () => _service.CreateShortUrlAsync(urlMuitoLonga)
+        );
+    }
+
+    [Fact]
+    public async Task GetUrlByIdAsync_ComGuidVazio_DeveLancarArgumentException()
+    {
+        // Act & Assert
+        await Assert.ThrowsAsync<ArgumentException>(
+            () => _service.GetUrlByIdAsync(Guid.Empty)
+        );
+    }
+
+    [Fact]
+    public async Task GetUrlByIdAsync_ComIdInexistente_DeveRetornarNulo()
+    {
+        // Arrange
+        var idInexistente = Guid.NewGuid();
+        _mockContext.Setup(c => c.GetByIdAsync(idInexistente))
+            .ReturnsAsync((UrlItem?)null);
+
+        // Act
+        var resultado = await _service.GetUrlByIdAsync(idInexistente);
+
+        // Assert
+        Assert.Null(resultado);
+    }
+
+    [Fact]
+    public async Task GetUrlByIdAsync_ComIdExistente_DeveRetornarUrlItemCorreto()
+    {
+        // Arrange
+        var idExistente = Guid.NewGuid();
+        var itemEsperado = new UrlItem
+        {
+            Id = idExistente,
+            OriginalUrl = "https://www.google.com",
+            ShortCode = "abc1234",
+            CreatedAt = DateTimeOffset.UtcNow,
+            ClickCount = 0
+        };
+
+        _mockContext.Setup(c => c.GetByIdAsync(idExistente))
+            .ReturnsAsync(itemEsperado);
+
+        // Act
+        var resultado = await _service.GetUrlByIdAsync(idExistente);
+
+        // Assert
+        Assert.NotNull(resultado);
+        Assert.Equal(idExistente, resultado.Id);
+        Assert.Equal(itemEsperado.OriginalUrl, resultado.OriginalUrl);
+    }
+
+
 }
